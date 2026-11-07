@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Find Workers</title>
+<style>
+body{font-family:Arial;background:#f2f5f8;margin:0}
+header{background:#075e54;color:white;padding:20px;text-align:center}
+.container{padding:15px}
+input,select{width:100%;padding:13px;margin:8px 0;box-sizing:border-box;border:1px solid #ccc;border-radius:8px}
+.card{background:white;padding:18px;margin:12px 0;border-radius:12px}
+button{background:#075e54;color:white;border:0;padding:12px;border-radius:8px;width:100%;margin-top:10px}
+</style>
+</head>
+<body>
+
+<header>
+<h2>Find Professional Workers</h2>
+</header>
+
+<div class="container">
+
+<input id="search" placeholder="Search worker or service...">
+
+<select id="city">
+<option value="">All Cities</option>
+<option>Karachi</option>
+<option>Lahore</option>
+<option>Islamabad</option>
+<option>Rawalpindi</option>
+<option>Multan</option>
+</select>
+
+<div id="results"></div>
+
+</div>
+
+<script>
+function showWorkers(){
+
+let users=JSON.parse(localStorage.getItem("users")||"[]");
+
+let search=document.getElementById("search").value.toLowerCase();
+let city=document.getElementById("city").value.toLowerCase();
+
+let workers=users.filter(u=>
+u.type==="Worker" &&
+u.name.toLowerCase().includes(search) ||
+u.type==="Worker" &&
+u.service.toLowerCase().includes(search)
+);
+
+if(city){
+workers=workers.filter(u=>u.city.toLowerCase()===city);
+}
+
+let results=document.getElementById("results");
+results.innerHTML="";
+
+if(workers.length===0){
+results.innerHTML="<p>No workers found.</p>";
+return;
+}
+
+workers.forEach((worker,index)=>{
+let card=document.createElement("div");
+card.className="card";
+
+let title=document.createElement("h3");
+title.textContent=worker.name;
+
+let service=document.createElement("p");
+service.textContent="Service: "+worker.service;
+
+let location=document.createElement("p");
+location.textContent="City: "+worker.city;
+
+let button=document.createElement("button");
+button.textContent="Book Worker";
+button.onclick=()=>bookWorker(worker.phone);
+
+card.append(title,service,location,button);
+results.appendChild(card);
+});
+
+}
+
+function bookWorker(phone){
+
+let user=JSON.parse(localStorage.getItem("currentUser"));
+
+if(!user){
+alert("Please login first!");
+location.href="login.html";
+return;
+}
+
+if(user.type!=="Customer"){
+alert("Only customers can book workers.");
+return;
+}
+
+let bookings=JSON.parse(localStorage.getItem("bookings")||"[]");
+
+let worker=JSON.parse(localStorage.getItem("users")||"[]")
+.find(u=>u.phone===phone);
+
+let booking={
+customer:user.phone,
+worker:phone,
+workerName:worker.name,
+service:worker.service,
+status:"Pending",
+date:new Date().toLocaleString()
+};
+
+bookings.push(booking);
+
+localStorage.setItem("bookings",JSON.stringify(bookings));
+
+alert("Booking request submitted!");
+}
+
+document.getElementById("search").addEventListener("input",showWorkers);
+document.getElementById("city").addEventListener("change",showWorkers);
+
+showWorkers();
+</script>
+
+</body>
+</html>
