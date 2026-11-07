@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel</title>
+<style>
+body{font-family:Arial;background:#f2f5f8;margin:0}
+header{background:#075e54;color:white;padding:20px;text-align:center}
+.box{background:white;padding:18px;margin:15px;border-radius:12px}
+h2{color:#075e54}
+.item{border-bottom:1px solid #ddd;padding:12px}
+button{background:#075e54;color:white;padding:12px;border:0;border-radius:7px}
+</style>
+</head>
+<body>
+
+<header>
+<h2 style="color:white">Admin Dashboard</h2>
+<p>Worker Booking Management</p>
+</header>
+
+<div class="box">
+<h2>Statistics</h2>
+<p id="users"></p>
+<p id="workers"></p>
+<p id="customers"></p>
+<p id="bookings"></p>
+</div>
+
+<div class="box">
+<h2>Registered Users</h2>
+<div id="userList"></div>
+</div>
+
+<div class="box">
+<h2>All Bookings</h2>
+<div id="bookingList"></div>
+</div>
+
+<script>
+
+let users=JSON.parse(localStorage.getItem("users")||"[]");
+let bookings=JSON.parse(localStorage.getItem("bookings")||"[]");
+
+document.getElementById("users").innerText=
+"Total Users: "+users.length;
+
+document.getElementById("workers").innerText=
+"Total Workers: "+users.filter(u=>u.type==="Worker").length;
+
+document.getElementById("customers").innerText=
+"Total Customers: "+users.filter(u=>u.type==="Customer").length;
+
+document.getElementById("bookings").innerText=
+"Total Bookings: "+bookings.length;
+
+let userList=document.getElementById("userList");
+
+users.forEach(u=>{
+let div=document.createElement("div");
+div.className="item";
+div.textContent=u.name+" | "+u.type+" | "+u.city;
+userList.appendChild(div);
+});
+
+let bookingList=document.getElementById("bookingList");
+
+bookings.forEach(b=>{
+let div=document.createElement("div");
+div.className="item";
+div.textContent=b.service+" | "+b.status+" | "+b.date;
+bookingList.appendChild(div);
+});
+
+if(users.length===0){
+userList.innerText="No users registered.";
+}
+
+if(bookings.length===0){
+bookingList.innerText="No bookings available.";
+}
+
+</script>
+</body>
+</html>
