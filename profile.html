@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker Profile</title>
+<style>
+body{font-family:Arial;background:#f2f5f8;padding:15px}
+.box{background:white;padding:20px;border-radius:12px;max-width:450px;margin:auto}
+h2{color:#075e54;text-align:center}
+input,textarea,button{width:100%;padding:13px;margin:8px 0;box-sizing:border-box;border:1px solid #ccc;border-radius:8px}
+button{background:#075e54;color:white;border:0}
+</style>
+</head>
+<body>
+
+<div class="box">
+<h2>My Worker Profile</h2>
+
+<form id="profileForm">
+<input id="name" placeholder="Full Name" required>
+<input id="city" placeholder="City" required>
+<input id="service" placeholder="Your Profession" required>
+<input id="price" type="number" placeholder="Price per hour (PKR)" required>
+<textarea id="about" placeholder="About Your Experience"></textarea>
+<button type="submit">Save Profile</button>
+</form>
+
+<p id="message"></p>
+<button onclick="location.href='dashboard.html'">Back to Dashboard</button>
+</div>
+
+<script>
+let user=JSON.parse(localStorage.getItem("currentUser"));
+
+if(!user){
+location.href="login.html";
+}else if(user.type!=="Worker"){
+document.getElementById("message").innerText="Worker account required.";
+document.getElementById("profileForm").style.display="none";
+}else{
+
+name.value=user.name||"";
+city.value=user.city||"";
+service.value=user.service||"";
+price.value=user.price||"";
+about.value=user.about||"";
+}
+
+document.getElementById("profileForm").onsubmit=function(e){
+e.preventDefault();
+
+let users=JSON.parse(localStorage.getItem("users")||"[]");
+
+let index=users.findIndex(u=>u.phone===user.phone);
+
+if(index!==-1){
+
+users[index].name=name.value;
+users[index].city=city.value;
+users[index].service=service.value;
+users[index].price=price.value;
+users[index].about=about.value;
+
+localStorage.setItem("users",JSON.stringify(users));
+
+localStorage.setItem("currentUser",JSON.stringify(users[index]));
+
+document.getElementById("message").innerText="Profile Saved Successfully!";
+}
+};
+</script>
+</body>
+</html>
