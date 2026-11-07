@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Profile</title>
+<style>
+body{font-family:Arial;background:#f1f5f9;padding:20px}
+.box{max-width:430px;margin:auto;background:white;padding:22px;border-radius:15px}
+input,button{width:100%;padding:13px;margin:9px 0;box-sizing:border-box}
+button{background:#0f766e;color:white;border:0;border-radius:8px}
+</style>
+</head>
+<body>
+<div class="box">
+<h2>My Profile / میرا پروفائل</h2>
+<form id="profileForm">
+<input id="name" placeholder="Full Name" required>
+<input id="phone" placeholder="Phone Number" required>
+<input id="city" placeholder="City">
+<input id="service" placeholder="Your Service (Worker only)">
+<button type="submit">Save Profile</button>
+</form>
+<p id="message"></p>
+<button onclick="location.href='dashboard.html'">Dashboard</button>
+<button id="logout">Logout</button>
+</div>
+
+<script type="module">
+import {auth,db} from "./firebase.js";
+import {onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+import {doc,getDoc,setDoc} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const form=document.getElementById("profileForm");
+const msg=document.getElementById("message");
+let user=null;
+
+onAuthStateChanged(auth,async u=>{
+ if(!u){location.href="login.html";return;}
+ user=u;
+ const snap=await getDoc(doc(db,"users",u.uid));
+ if(snap.exists()){
+  const d=snap.data();
+  document.getElementById("name").value=d.name||"";
+  document.getElementById("phone").value=d.phone||"";
+  document.getElementById("city").value=d.city||"";
+  document.getElementById("service").value=d.service||"";
+ }
+});
+
+form.addEventListener("submit",async e=>{
+ e.preventDefault();
+ try{
+  const ref=doc(db,"users",user.uid);
+  const snap=await getDoc(ref);
+  const old=snap.exists()?snap.data():{};
+  await setDoc(ref,{
+   ...old,
+   uid:user.uid,
+   email:user.email,
+   name:document.getElementById("name").value.trim(),
+   phone:document.getElementById("phone").value.trim(),
+   city:document.getElementById("city").value.trim(),
+   service:document.getElementById("service").value.trim()
+  });
+  msg.textContent="Profile saved successfully!";
+ }catch(e){msg.textContent=e.message;}
+});
+
+document.getElementById("logout").onclick=async()=>{
+ await signOut(auth);
+ location.href="login.html";
+};
+</script>
+</body>
+</html>
