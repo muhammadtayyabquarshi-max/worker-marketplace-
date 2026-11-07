@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Worker Booking Register</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f1f5f9;
+  padding: 20px;
+}
+.box {
+  max-width: 400px;
+  margin: 30px auto;
+  padding: 25px;
+  background: white;
+  border-radius: 15px;
+}
+input, select, button {
+  width: 100%;
+  padding: 13px;
+  margin: 10px 0;
+  box-sizing: border-box;
+}
+button {
+  background: #0f766e;
+  color: white;
+  border: none;
+  border-radius: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+<h2>Worker Booking</h2>
+<h3>Create Account</h3>
+
+<form id="registerForm">
+
+<input id="name" placeholder="Full Name" required>
+
+<input id="email" type="email" placeholder="Email" required>
+
+<input id="phone" type="tel" placeholder="Phone Number" required>
+
+<input id="password" type="password"
+placeholder="Password (minimum 6 characters)"
+minlength="6" required>
+
+<select id="role" required>
+<option value="">Select Account Type</option>
+<option value="customer">Customer</option>
+<option value="worker">Worker</option>
+</select>
+
+<button type="submit">Create Account</button>
+
+</form>
+
+<p id="message"></p>
+
+<p>Already have an account?
+<a href="login.html">Login</a></p>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+  createUserWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+  doc, setDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const form = document.getElementById("registerForm");
+const message = document.getElementById("message");
+
+form.addEventListener("submit", async (e) => {
+
+  e.preventDefault();
+
+  const name = document.getElementById("name").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const password = document.getElementById("password").value;
+  const role = document.getElementById("role").value;
+
+  message.textContent = "Creating account...";
+
+  try {
+
+    const result = await createUserWithEmailAndPassword(
+      auth, email, password
+    );
+
+    const userData = {
+      uid: result.user.uid,
+      name,
+      email,
+      phone,
+      role,
+      createdAt: serverTimestamp()
+    };
+
+    await setDoc(doc(db, "users", result.user.uid), userData);
+
+    localStorage.setItem("currentUser", JSON.stringify({
+      uid: result.user.uid,
+      name,
+      email,
+      phone,
+      role
+    }));
+
+    message.textContent = "Account created successfully!";
+
+    window.location.href = "dashboard.html";
+
+  } catch (error) {
+
+    message.textContent = error.message;
+
+  }
+
+});
+
+</script>
+
+</body>
+</html>
