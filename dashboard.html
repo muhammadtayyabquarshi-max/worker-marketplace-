@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+
+<body>
+
+<header></header>
+
+<main>
+
+<section class="card">
+
+<h1>Dashboard / ڈیش بورڈ</h1>
+
+<p id="welcome">Loading...</p>
+
+<div class="grid">
+
+<a class="btn" href="workers.html">Find Workers</a>
+
+<a class="btn" href="bookings.html">My Bookings</a>
+
+<a class="btn" href="profile.html">Edit Profile</a>
+
+<a class="btn" href="index.html">Home</a>
+
+</div>
+
+<p id="msg"></p>
+
+</section>
+
+</main>
+
+<script type="module">
+
+import {
+  setHeader,
+  requireUser
+} from "./common.js";
+
+const $ = id => document.getElementById(id);
+
+setHeader();
+
+try {
+
+  const { user, profile } = await requireUser();
+
+  $("welcome").textContent =
+    "Welcome " + (profile.name || user.email) +
+    " | Role: " + (profile.role || "customer");
+
+} catch(error) {
+
+  $("msg").textContent = error.message;
+
+}
+
+</script>
+
+</body>
+</html>
