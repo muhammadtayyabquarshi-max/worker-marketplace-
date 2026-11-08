@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booking System</title>
+<link rel="stylesheet" href="app.css">
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f2f5f7;
+  margin: 0;
+  padding: 15px;
+}
+.container {
+  max-width: 600px;
+  margin: 20px auto;
+}
+.card {
+  background: white;
+  padding: 18px;
+  margin-bottom: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #ddd;
+}
+input, textarea, button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+}
+button {
+  background: #087f5b;
+  color: white;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+.reject {
+  background: #c0392b;
+}
+.accept {
+  background: #087f5b;
+}
+.status {
+  font-weight: bold;
+  color: #087f5b;
+}
+.hidden {
+  display: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Booking System / بکنگ سسٹم</h2>
+
+<div id="message"></div>
+
+<div class="card hidden" id="bookingFormBox">
+
+<h3>Book a Worker / کاریگر بک کریں</h3>
+
+<p id="workerInfo"></p>
+
+<form id="bookingForm">
+
+<label>Booking Date / تاریخ</label>
+<input type="date" id="date" required>
+
+<label>Booking Time / وقت</label>
+<input type="time" id="time" required>
+
+<label>Your Address / آپ کا پتہ</label>
+<input id="address"
+placeholder="Enter your complete address"
+required>
+
+<label>Work Details / کام کی تفصیل</label>
+<textarea id="details"
+placeholder="Describe your work..."
+required></textarea>
+
+<button type="submit" id="sendBtn">
+Send Booking Request / بکنگ بھیجیں
+</button>
+
+</form>
+</div>
+
+<h3 id="listTitle">My Bookings / میری بکنگز</h3>
+
+<div id="bookingsList"></div>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+  doc,
+  getDoc,
+  addDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+
+const message = document.getElementById("message");
+const formBox = document.getElementById("bookingFormBox");
+const list = document.getElementById("bookingsList");
+
+const params = new URLSearchParams(window.location.search);
+const workerId = params.get("worker");
+
+let currentUser = null;
+let currentProfile = null;
+let selectedWorker = null;
+
+
+function showMessage(text, color = "red") {
+  message.style.color = color;
+  message.textContent = text;
+}
+
+
+// Set minimum booking date
+document.getElementById("date").min =
+  new Date().toISOString().split("T")[0];
+
+
+onAuthStateChanged(auth, async (user) => {
+
+  if (!user) {
+    message.innerHTML =
+      'Please <a href="login.html">Login</a> first.';
+    return;
+  }
+
+  currentUser = user;
+
+  try {
+
+    const profileSnap = await getDoc(
+      doc(db, "users", user.uid)
+    );
+
+    if (!profileSnap.exists()) {
+      showMessage("Account profile not found. Please contact support.");
+      return;
+    }
+
+    currentProfile = profileSnap.data();
+
+    if (workerId) {
+
+      if (currentProfile.role !== "customer") {
+        showMessage("Only customers can book a worker.");
+        return;
+      }
+
+      await loadWorker();
+
+    } else {
+
+      await loadBookings();
+
+    }
+
+  } catch (error) {
+    showMessage(error.message);
+  }
+
+});
+
+
+// Load selected worker
+async function loadWorker() {
+
+  const workerSnap = await getDoc(
+    doc(db, "users", workerId)
+  );
+
+  if (!workerSnap.exists()) {
+    showMessage("Worker not found.");
+    return;
+  }
+
+  selectedWorker = workerSnap.data();
+
+  if (selectedWorker.role !== "worker") {
+    showMessage("This account is not a worker.");
+    return;
+  }
+
+  document.getElementById("workerInfo").innerHTML =
+    `<b>Worker:</b> ${escapeHTML(selectedWorker.name || "")}
+     <br><b>Service:</b> ${escapeHTML(selectedWorker.service || "")}
+     <br><b>City:</b> ${escapeHTML(selectedWorker.city || "")}`;
+
+  formBox.classList.remove("hidden");
+
+}
+
+
+// Send booking request
+document.getElementById("bookingForm")
+.addEventListener("submit", async (e) => {
+
+  e.preventDefault();
+
+  if (!currentUser || !selectedWorker) return;
+
+  const button = document.getElementById("sendBtn");
+  button.disabled = true;
+
+  try {
+
+    const date = document.getElementById("date").value;
+    const time = document.getElementById("time").value;
+    const address = document.getElementById("address").value.trim();
+    const details = document.getElementById("details").value.trim();
+
+    if (!date || !time || !address || !details) {
+      throw new Error("Please fill all booking details.");
+    }
+
+    if (date < new Date().toISOString().split("T")[0]) {
+      throw new Error("Please select a future date.");
+    }
+
+    await addDoc(collection(db, "bookings"), {
+
+      workerId: workerId,
+      workerName: selectedWorker.name || "",
+      workerEmail: selectedWorker.email || "",
+      service: selectedWorker.service || "",
+
+      customerId: currentUser.uid,
+      customerName: currentProfile.name || "",
+      customerEmail: currentUser.email || "",
+      customerPhone: currentProfile.phone || "",
+
+      date: date,
+      time: time,
+      address: address,
+      details: details,
+
+      status: "pending",
+      createdAt: serverTimestamp()
+
+    });
+
+    showMessage(
+      "Booking request sent successfully!",
+      "green"
+    );
+
+    document.getElementById("bookingForm").reset();
+
+  } catch (error) {
+
+    showMessage(error.message);
+
+  }
+
+  button.disabled = false;
+
+});
+
+
+// Load customer or worker bookings
+async function loadBookings() {
+
+  list.innerHTML = "<p>Loading bookings...</p>";
+
+  let q;
+
+  if (currentProfile.role === "worker") {
+
+    q = query(
+      collection(db, "bookings"),
+      where("workerId", "==", currentUser.uid)
+    );
+
+    document.getElementById("listTitle").textContent =
+      "Incoming Requests / آنے والی بکنگز";
+
+  } else {
+
+    q = query(
+      collection(db, "bookings"),
+      where("customerId", "==", currentUser.uid)
+    );
+
+    document.getElementById("listTitle").textContent =
+      "My Bookings / میری بکنگز";
+
+  }
+
+  const snapshot = await getDocs(q);
+
+  list.innerHTML = "";
+
+  if (snapshot.empty) {
+    list.innerHTML = "<p>No bookings found yet.</p>";
+    return;
+  }
+
+  snapshot.forEach((bookingDoc) => {
+
+    const b = bookingDoc.data();
+    const id = bookingDoc.id;
+
+    const isWorker = currentProfile.role === "worker";
+
+    const otherPerson = isWorker
+      ? b.customerName
+      : b.workerName;
+
+    const actions = isWorker && b.status === "pending"
+      ? `
+        <button class="accept" data-action="accept" data-id="${id}">
+          Accept / قبول کریں
+        </button>
+        <button class="reject" data-action="reject" data-id="${id}">
+          Reject / مسترد کریں
+        </button>
+      `
+      : "";
+
+    list.innerHTML += `
+
+      <div class="card">
+
+        <h3>${escapeHTML(b.service || "Service")}</h3>
+
+        <p><b>${isWorker ? "Customer" : "Worker"}:</b>
+        ${escapeHTML(otherPerson || "")}</p>
+
+        <p><b>Date:</b> ${escapeHTML(b.date || "")}</p>
+
+        <p><b>Time:</b> ${escapeHTML(b.time || "")}</p>
+
+        <p><b>Address:</b> ${escapeHTML(b.address || "")}</p>
+
+        <p><b>Details:</b> ${escapeHTML(b.details || "")}</p>
+
+        <p class="status">
+        Status: ${escapeHTML(b.status || "pending").toUpperCase()}
+        </p>
+
+        ${actions}
+
+      </div>
+
+    `;
+
+  });
+
+}
+
+
+// Accept / Reject booking
+list.addEventListener("click", async (e) => {
+
+  const button = e.target.closest("button[data-action]");
+
+  if (!button) return;
+
+  const id = button.dataset.id;
+  const action = button.dataset.action;
+
+  if (currentProfile.role !== "worker") return;
+
+  button.disabled = true;
+
+  try {
+
+    const bookingRef = doc(db, "bookings", id);
+    const bookingSnap = await getDoc(bookingRef);
+
+    if (!bookingSnap.exists()) {
+      throw new Error("Booking not found.");
+    }
+
+    const booking = bookingSnap.data();
+
+    if (booking.workerId !== currentUser.uid) {
+      throw new Error("You cannot update this booking.");
+    }
+
+    if (booking.status !== "pending") {
+      throw new Error("This booking has already been processed.");
+    }
+
+    await updateDoc(bookingRef, {
+      status: action === "accept" ? "accepted" : "rejected",
+      updatedAt: serverTimestamp()
+    });
+
+    showMessage(
+      action === "accept"
+        ? "Booking accepted!"
+        : "Booking rejected!",
+      "green"
+    );
+
+    await loadBookings();
+
+  } catch (error) {
+
+    showMessage(error.message);
+    button.disabled = false;
+
+  }
+
+});
+
+
+// Safe text display
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
+}
+
+</script>
+
+</body>
+</html>
