@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create Account - Worker Booking</title>
+<link rel="stylesheet" href="app.css">
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f2f5f7;
+  margin: 0;
+  padding: 20px;
+}
+.container {
+  max-width: 450px;
+  margin: 25px auto;
+  background: white;
+  padding: 22px;
+  border-radius: 14px;
+}
+input, select, button {
+  width: 100%;
+  padding: 13px;
+  margin: 9px 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+button {
+  background: #087f5b;
+  color: white;
+  border: none;
+  font-weight: bold;
+}
+h2 { text-align: center; }
+#message { color: red; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Create Account / اکاؤنٹ بنائیں</h2>
+
+<form id="registerForm">
+
+<input id="name" placeholder="Full Name / پورا نام" required>
+
+<input id="email" type="email"
+placeholder="Email Address" required>
+
+<input id="phone" type="tel"
+placeholder="Phone Number / فون نمبر" required>
+
+<input id="city" placeholder="City / شہر" required>
+
+<label>Account Type / اکاؤنٹ کی قسم</label>
+
+<select id="role" required>
+<option value="">Choose Account Type</option>
+<option value="customer">Customer / گاہک</option>
+<option value="worker">Worker / کاریگر</option>
+</select>
+
+<div id="serviceBox" style="display:none">
+<label>Your Service / آپ کا کام</label>
+<select id="service">
+<option value="">Choose Service</option>
+<option value="Mason">Mason / مستری</option>
+<option value="Electrician">Electrician / الیکٹریشن</option>
+<option value="Plumber">Plumber / پلمبر</option>
+<option value="Carpenter">Carpenter / بڑھئی</option>
+<option value="Painter">Painter / پینٹر</option>
+<option value="AC Technician">AC Technician / اے سی مکینک</option>
+<option value="Other">Other / دیگر</option>
+</select>
+</div>
+
+<input id="password" type="password"
+placeholder="Password" minlength="6" required>
+
+<button type="submit" id="submitBtn">
+Create Account / اکاؤنٹ بنائیں
+</button>
+
+</form>
+
+<p id="message"></p>
+
+<p>Already have an account?</p>
+<a href="login.html">Login / لاگ اِن</a>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+  createUserWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+  doc,
+  setDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const form = document.getElementById("registerForm");
+const role = document.getElementById("role");
+const serviceBox = document.getElementById("serviceBox");
+const message = document.getElementById("message");
+const button = document.getElementById("submitBtn");
+
+role.addEventListener("change", () => {
+  serviceBox.style.display =
+    role.value === "worker" ? "block" : "none";
+});
+
+form.addEventListener("submit", async (e) => {
+
+  e.preventDefault();
+
+  message.style.color = "red";
+  message.textContent = "";
+  button.disabled = true;
+
+  const name = document.getElementById("name").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const city = document.getElementById("city").value.trim();
+  const password = document.getElementById("password").value;
+  const accountType = role.value;
+  const service = document.getElementById("service").value;
+
+  if (!accountType) {
+    message.textContent = "Please choose account type.";
+    button.disabled = false;
+    return;
+  }
+
+  if (accountType === "worker" && !service) {
+    message.textContent = "Please choose your service.";
+    button.disabled = false;
+    return;
+  }
+
+  try {
+
+    const result = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    await setDoc(doc(db, "users", result.user.uid), {
+      uid: result.user.uid,
+      name,
+      email,
+      phone,
+      city,
+      role: accountType,
+      service: accountType === "worker" ? service : "",
+      createdAt: serverTimestamp()
+    });
+
+    message.style.color = "green";
+    message.textContent = "Account created successfully!";
+
+    window.location.href = "dashboard.html";
+
+  } catch (error) {
+
+    if (error.code === "auth/email-already-in-use") {
+      message.textContent =
+        "This email already exists. Please Login.";
+    } else {
+      message.textContent = error.code + ": " + error.message;
+    }
+
+  }
+
+  button.disabled = false;
+
+});
+
+</script>
+
+</body>
+</html>
