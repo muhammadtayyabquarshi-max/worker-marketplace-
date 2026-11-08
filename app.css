@@ -1,0 +1,117 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f7fb;
+  color: #172033;
+}
+
+header {
+  background: #123b63;
+  color: white;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-size: 22px;
+  font-weight: bold;
+}
+
+header a {
+  color: white;
+  text-decoration: none;
+  margin: 7px;
+}
+
+main {
+  max-width: 950px;
+  margin: 25px auto;
+  padding: 12px;
+}
+
+.card {
+  background: white;
+  padding: 22px;
+  border-radius: 15px;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 18px #00000010;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+input, select, textarea, button {
+  width: 100%;
+  padding: 13px;
+  margin: 7px 0;
+  border: 1px solid #ccd5df;
+  border-radius: 9px;
+  font-size: 16px;
+}
+
+button, .btn {
+  background: #1268aa;
+  color: white;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  padding: 13px;
+  border-radius: 9px;
+}
+
+button.secondary {
+  background: #526579;
+}
+
+.service {
+  background: white;
+  color: #123b63;
+  border: 1px solid #ccd5df;
+  font-weight: bold;
+}
+
+.service:hover {
+  background: #eaf5ff;
+}
+
+.hidden {
+  display: none;
+}
+
+.item {
+  background: white;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  margin: 12px 0;
+}
+
+.notice {
+  background: #eaf5ff;
+  padding: 12px;
+  border-radius: 9px;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+footer {
+  text-align: center;
+  padding: 25px;
+  color: #64748b;
+}
