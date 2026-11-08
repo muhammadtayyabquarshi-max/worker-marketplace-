@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile</title>
+<link rel="stylesheet" href="app.css">
+</head>
+
+<body>
+
+<header></header>
+
+<main>
+
+<section class="card">
+
+<h1>Profile / پروفائل</h1>
+
+<form id="form">
+
+<label>Name</label>
+<input id="name" required>
+
+<label>Phone</label>
+<input id="phone">
+
+<label>City</label>
+<input id="city">
+
+<label>Service</label>
+<input id="service">
+
+<button>Save Profile</button>
+
+</form>
+
+<p id="msg"></p>
+
+</section>
+
+</main>
+
+<script type="module">
+
+import { db } from "./firebase.js";
+
+import {
+  setHeader,
+  requireUser
+} from "./common.js";
+
+import {
+  doc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const $ = id => document.getElementById(id);
+
+setHeader();
+
+const { user, profile } = await requireUser();
+
+$("name").value = profile.name || "";
+$("phone").value = profile.phone || "";
+$("city").value = profile.city || "";
+$("service").value = profile.service || "";
+
+$("form").onsubmit = async e => {
+
+  e.preventDefault();
+
+  try {
+
+    await updateDoc(
+      doc(db, "users", user.uid),
+      {
+        name: $("name").value,
+        phone: $("phone").value,
+        city: $("city").value,
+        service: $("service").value
+      }
+    );
+
+    $("msg").textContent = "Profile saved successfully.";
+
+  } catch(error) {
+
+    $("msg").textContent = error.message;
+
+  }
+
+};
+
+</script>
+
+</body>
+</html>
