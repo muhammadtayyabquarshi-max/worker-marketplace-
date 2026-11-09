@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker Booking Payment</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f1f5f9;
+  padding: 15px;
+}
+.container {
+  max-width: 550px;
+  margin: auto;
+}
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 15px 0;
+  box-shadow: 0 2px 8px #ddd;
+}
+select, input {
+  width: 100%;
+  padding: 13px;
+  margin: 10px 0;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 7px;
+}
+button {
+  width: 100%;
+  padding: 13px;
+  background: #167447;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  margin-top: 10px;
+  font-size: 16px;
+}
+.small {
+  color: #666;
+  font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>💳 Payment System</h2>
+
+<div class="card">
+
+<h3>Select Your Booking</h3>
+
+<select id="booking">
+<option value="">Loading bookings...</option>
+</select>
+
+<h3>Select Payment Method</h3>
+
+<select id="method">
+<option value="Cash">Cash Payment</option>
+<option value="JazzCash">JazzCash</option>
+<option value="Easypaisa">Easypaisa</option>
+</select>
+
+<p class="small">
+JazzCash and Easypaisa payments require an official merchant
+account and payment gateway integration.
+</p>
+
+<button id="pay">Confirm Payment Method</button>
+
+<p id="message"></p>
+
+</div>
+
+<div class="card">
+<h3>Payment History</h3>
+<div id="history">Loading...</div>
+</div>
+
+<button onclick="location.href='dashboard.html'">
+Back to Dashboard
+</button>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+ onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+ collection,
+ query,
+ where,
+ getDocs,
+ doc,
+ updateDoc
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const bookingSelect = document.getElementById("booking");
+const message = document.getElementById("message");
+const historyBox = document.getElementById("history");
+
+let currentUser = null;
+
+onAuthStateChanged(auth, async user => {
+
+ if (!user) {
+   location.href = "login.html";
+   return;
+ }
+
+ currentUser = user;
+
+ try {
+
+   const q = query(
+     collection(db, "bookings"),
+     where("customerId", "==", user.uid)
+   );
+
+   const snapshot = await getDocs(q);
+
+   bookingSelect.innerHTML =
+     '<option value="">Select Booking</option>';
+
+   historyBox.innerHTML = "";
+
+   if (snapshot.empty) {
+     bookingSelect.innerHTML =
+       '<option value="">No bookings found</option>';
+
+     historyBox.textContent = "No payment history.";
+     return;
+   }
+
+   snapshot.forEach(item => {
+
+     const b = item.data();
+
+     const option = document.createElement("option");
+     option.value = item.id;
+     option.textContent =
+       (b.service || "Service") +
+       " - " + (b.status || "pending");
+
+     bookingSelect.appendChild(option);
+
+     const card = document.createElement("div");
+     card.className = "card";
+
+     const title = document.createElement("b");
+     title.textContent = b.service || "Service";
+
+     const method = document.createElement("p");
+     method.textContent =
+       "Method: " + (b.paymentMethod || "Not selected");
+
+     const status = document.createElement("p");
+     status.textContent =
+       "Payment: " + (b.paymentStatus || "Not selected");
+
+     card.append(title, method, status);
+     historyBox.appendChild(card);
+
+   });
+
+ } catch(error) {
+
+   message.textContent = error.message;
+
+ }
+
+});
+
+document.getElementById("pay").onclick = async () => {
+
+ const bookingId = bookingSelect.value;
+ const method = document.getElementById("method").value;
+
+ if (!bookingId) {
+   message.textContent = "Please select a booking.";
+   return;
+ }
+
+ try {
+
+   const btn = document.getElementById("pay");
+   btn.disabled = true;
+
+   const bookingRef = doc(db, "bookings", bookingId);
+
+   const snapshot = await getDocs(
+     query(
+       collection(db, "bookings"),
+       where("customerId", "==", currentUser.uid)
+     )
+   );
+
+   const owned = snapshot.docs.some(
+     item => item.id === bookingId
+   );
+
+   if (!owned) {
+     throw new Error("Invalid booking.");
+   }
+
+   await updateDoc(bookingRef, {
+     paymentMethod: method,
+     paymentStatus: "pending"
+   });
+
+   message.textContent =
+     "Payment method saved successfully!";
+
+   location.reload();
+
+ } catch(error) {
+
+   message.textContent = error.message;
+   document.getElementById("pay").disabled = false;
+
+ }
+
+};
+
+</script>
+
+</body>
+</html>
