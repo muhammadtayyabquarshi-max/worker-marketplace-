@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Complete Bookings</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f5f7;
+  padding: 15px;
+}
+.container {
+  max-width: 600px;
+  margin: auto;
+}
+.card {
+  background: white;
+  padding: 18px;
+  margin: 15px 0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #ddd;
+}
+button {
+  background: #16804b;
+  color: white;
+  border: 0;
+  padding: 12px;
+  border-radius: 7px;
+  width: 100%;
+  margin-top: 10px;
+}
+.status {
+  font-weight: bold;
+  color: #16804b;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>✅ Booking Completion</h2>
+
+<p id="welcome">Loading...</p>
+
+<div id="bookings">Loading bookings...</div>
+
+<button onclick="location.href='dashboard.html'">
+Back to Dashboard
+</button>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+ onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+ collection, query, where, getDocs,
+ doc, getDoc, updateDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const box = document.getElementById("bookings");
+
+onAuthStateChanged(auth, async user => {
+
+ if (!user) {
+   location.href = "login.html";
+   return;
+ }
+
+ try {
+
+   const profileSnap = await getDoc(
+     doc(db, "users", user.uid)
+   );
+
+   if (!profileSnap.exists()) {
+     box.textContent = "Profile not found";
+     return;
+   }
+
+   const role = profileSnap.data().role;
+
+   if (role !== "worker" && role !== "customer") {
+     box.textContent = "Account role not supported.";
+     return;
+   }
+
+   document.getElementById("welcome").textContent =
+     "Welcome " + (profileSnap.data().name || "");
+
+   const field = role === "worker"
+     ? "workerId"
+     : "customerId";
+
+   const q = query(
+     collection(db, "bookings"),
+     where(field, "==", user.uid)
+   );
+
+   const snapshot = await getDocs(q);
+
+   box.innerHTML = "";
+
+   if (snapshot.empty) {
+     box.textContent = "No bookings found.";
+     return;
+   }
+
+   snapshot.forEach(item => {
+
+     const b = item.data();
+
+     const card = document.createElement("div");
+     card.className = "card";
+
+     const title = document.createElement("h3");
+     title.textContent = b.service || "Service Booking";
+
+     const person = document.createElement("p");
+     person.textContent = role === "worker"
+       ? "Customer: " + (b.customerName || "")
+       : "Worker: " + (b.workerName || "");
+
+     const status = document.createElement("p");
+     status.className = "status";
+     status.textContent =
+       "Status: " + (b.status || "pending").toUpperCase();
+
+     card.append(title, person, status);
+
+     if (role === "worker" && b.status === "accepted") {
+
+       const btn = document.createElement("button");
+       btn.textContent = "Mark Work Completed";
+
+       btn.onclick = async () => {
+         try {
+           btn.disabled = true;
+
+           await updateDoc(doc(db, "bookings", item.id), {
+             status: "worker_completed",
+             updatedAt: serverTimestamp()
+           });
+
+           alert("Work marked as completed!");
+           location.reload();
+
+         } catch(error) {
+           alert(error.message);
+           btn.disabled = false;
+         }
+       };
+
+       card.appendChild(btn);
+     }
+
+     if (role === "customer" && b.status === "worker_completed") {
+
+       const btn = document.createElement("button");
+       btn.textContent = "Confirm Completed";
+
+       btn.onclick = async () => {
+         try {
+           btn.disabled = true;
+
+           await updateDoc(doc(db, "bookings", item.id), {
+             status: "completed",
+             updatedAt: serverTimestamp()
+           });
+
+           alert("Booking completed successfully!");
+           location.reload();
+
+         } catch(error) {
+           alert(error.message);
+           btn.disabled = false;
+         }
+       };
+
+       card.appendChild(btn);
+     }
+
+     box.appendChild(card);
+
+   });
+
+ } catch(error) {
+   box.textContent = error.message;
+ }
+
+});
+
+</script>
+</body>
+</html>
