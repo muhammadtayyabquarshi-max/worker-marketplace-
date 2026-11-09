@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Worker Reviews</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f5f7;
+  padding: 20px;
+}
+.container {
+  max-width: 600px;
+  margin: auto;
+}
+.box {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+}
+input, textarea, select {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  box-sizing: border-box;
+}
+button {
+  background: #167447;
+  color: white;
+  border: 0;
+  padding: 12px;
+  border-radius: 7px;
+  width: 100%;
+}
+.stars {
+  font-size: 30px;
+  color: orange;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h2>⭐ Worker Ratings & Reviews</h2>
+
+<div class="box">
+<h3>Write a Review</h3>
+
+<select id="booking">
+<option value="">Select your accepted booking</option>
+</select>
+
+<select id="rating">
+<option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
+<option value="4">⭐⭐⭐⭐ - Very Good</option>
+<option value="3">⭐⭐⭐ - Good</option>
+<option value="2">⭐⭐ - Poor</option>
+<option value="1">⭐ - Very Poor</option>
+</select>
+
+<textarea id="comment"
+placeholder="Write your experience..."
+rows="4"></textarea>
+
+<button id="submit">Submit Review</button>
+<p id="message"></p>
+</div>
+
+<div class="box">
+<h3>My Reviews</h3>
+<div id="reviews">Loading...</div>
+</div>
+
+<button onclick="location.href='dashboard.html'">
+Back to Dashboard
+</button>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+ onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+ collection, query, where, getDocs,
+ doc, getDoc, setDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const bookingSelect = document.getElementById("booking");
+const message = document.getElementById("message");
+const reviewsBox = document.getElementById("reviews");
+
+let currentUser = null;
+
+onAuthStateChanged(auth, async user => {
+
+ if (!user) {
+   location.href = "login.html";
+   return;
+ }
+
+ currentUser = user;
+
+ try {
+   const q = query(
+     collection(db, "bookings"),
+     where("customerId", "==", user.uid),
+     where("status", "==", "accepted")
+   );
+
+   const snapshot = await getDocs(q);
+
+   for (const item of snapshot.docs) {
+
+     const booking = item.data();
+
+     const reviewRef = doc(db, "reviews", item.id);
+     const reviewSnap = await getDoc(reviewRef);
+
+     if (reviewSnap.exists()) continue;
+
+     const option = document.createElement("option");
+     option.value = item.id;
+     option.textContent =
+       (booking.service || "Service") +
+       " - " + (booking.workerName || "Worker");
+
+     bookingSelect.appendChild(option);
+   }
+
+   loadReviews(user.uid);
+
+ } catch(error) {
+   message.textContent = error.message;
+ }
+
+});
+
+document.getElementById("submit").onclick = async () => {
+
+ const bookingId = bookingSelect.value;
+ const rating = Number(document.getElementById("rating").value);
+ const comment = document.getElementById("comment").value.trim();
+
+ if (!bookingId || !comment) {
+   message.textContent = "Select a booking and write a review.";
+   return;
+ }
+
+ try {
+
+   const bookingSnap = await getDoc(
+     doc(db, "bookings", bookingId)
+   );
+
+   if (!bookingSnap.exists()) {
+     message.textContent = "Booking not found.";
+     return;
+   }
+
+   const booking = bookingSnap.data();
+
+   if (
+     booking.customerId !== currentUser.uid ||
+     booking.status !== "accepted"
+   ) {
+     message.textContent = "This booking cannot be reviewed.";
+     return;
+   }
+
+   await setDoc(doc(db, "reviews", bookingId), {
+     bookingId,
+     customerId: currentUser.uid,
+     customerName: booking.customerName || "Customer",
+     workerId: booking.workerId,
+     workerName: booking.workerName || "Worker",
+     service: booking.service || "",
+     rating,
+     comment,
+     createdAt: serverTimestamp()
+   });
+
+   message.textContent = "Review submitted successfully!";
+
+   document.getElementById("comment").value = "";
+   bookingSelect.value = "";
+
+   loadReviews(currentUser.uid);
+
+ } catch(error) {
+   message.textContent = error.message;
+ }
+
+};
+
+async function loadReviews(uid) {
+
+ try {
+
+   const q = query(
+     collection(db, "reviews"),
+     where("customerId", "==", uid)
+   );
+
+   const snapshot = await getDocs(q);
+
+   reviewsBox.innerHTML = "";
+
+   if (snapshot.empty) {
+     reviewsBox.textContent = "No reviews yet.";
+     return;
+   }
+
+   snapshot.forEach(item => {
+
+     const data = item.data();
+
+     const card = document.createElement("div");
+     card.className = "box";
+
+     const title = document.createElement("h3");
+     title.textContent = data.workerName || "Worker";
+
+     const stars = document.createElement("div");
+     stars.className = "stars";
+     stars.textContent = "★".repeat(data.rating || 0);
+
+     const comment = document.createElement("p");
+     comment.textContent = data.comment || "";
+
+     card.append(title, stars, comment);
+     reviewsBox.appendChild(card);
+
+   });
+
+ } catch(error) {
+   reviewsBox.textContent = error.message;
+ }
+
+}
+
+</script>
+</body>
+</html>
