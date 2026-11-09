@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create Account - Worker Booking</title>
+<link rel="stylesheet" href="app.css">
+
+<style>
+body{
+font-family:Arial;
+background:#f1f5f9;
+padding:20px;
+}
+.card{
+max-width:450px;
+margin:25px auto;
+background:white;
+padding:25px;
+border-radius:15px;
+}
+input,select,button{
+width:100%;
+box-sizing:border-box;
+padding:14px;
+margin:9px 0;
+border:1px solid #ccc;
+border-radius:8px;
+font-size:16px;
+}
+button{
+background:#087f5b;
+color:white;
+border:0;
+font-weight:bold;
+}
+#msg{color:#d93025}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Create Account / نیا اکاؤنٹ</h2>
+
+<form id="registerForm">
+
+<input id="name" type="text"
+placeholder="Full Name / پورا نام" required>
+
+<input id="phone" type="tel"
+placeholder="Phone Number / فون نمبر" required>
+
+<input id="city" type="text"
+placeholder="City / شہر" required>
+
+<label>Account Type / اکاؤنٹ کی قسم</label>
+
+<select id="role" required>
+<option value="">Select Account Type</option>
+<option value="customer">Customer / گاہک</option>
+<option value="worker">Worker / کاریگر</option>
+</select>
+
+<div id="serviceBox" style="display:none">
+<label>Your Service / آپ کا کام</label>
+<select id="service">
+<option value="">Select Service</option>
+<option>Electrician</option>
+<option>Plumber</option>
+<option>Carpenter</option>
+<option>Mason</option>
+<option>Painter</option>
+<option>Cleaner</option>
+<option>AC Technician</option>
+<option>Other</option>
+</select>
+</div>
+
+<input id="email" type="email"
+placeholder="Email Address" required>
+
+<input id="password" type="password"
+placeholder="Password (minimum 6 characters)"
+minlength="6" required>
+
+<button type="submit" id="submitBtn">
+Create Account / اکاؤنٹ بنائیں
+</button>
+
+</form>
+
+<p id="msg"></p>
+
+<p>Already have an account?
+<a href="login.html">Login</a>
+</p>
+
+<a href="index.html">Back to Home</a>
+
+</div>
+
+<script type="module">
+
+import {auth,db} from "./firebase.js";
+
+import {
+createUserWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+doc,setDoc,serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const form=document.getElementById("registerForm");
+const role=document.getElementById("role");
+const serviceBox=document.getElementById("serviceBox");
+const service=document.getElementById("service");
+const msg=document.getElementById("msg");
+const btn=document.getElementById("submitBtn");
+
+role.addEventListener("change",()=>{
+serviceBox.style.display=
+role.value==="worker"?"block":"none";
+
+service.required=role.value==="worker";
+});
+
+form.addEventListener("submit",async(e)=>{
+
+e.preventDefault();
+
+msg.textContent="Creating account...";
+btn.disabled=true;
+
+const name=document.getElementById("name").value.trim();
+const phone=document.getElementById("phone").value.trim();
+const city=document.getElementById("city").value.trim();
+const email=document.getElementById("email").value.trim();
+const password=document.getElementById("password").value;
+const selectedRole=role.value;
+
+if(!selectedRole){
+msg.textContent="Please select account type.";
+btn.disabled=false;
+return;
+}
+
+if(selectedRole==="worker"&&!service.value){
+msg.textContent="Please select your service.";
+btn.disabled=false;
+return;
+}
+
+try{
+
+const result=await createUserWithEmailAndPassword(
+auth,email,password
+);
+
+const user=result.user;
+
+await setDoc(doc(db,"users",user.uid),{
+
+uid:user.uid,
+name:name,
+phone:phone,
+city:city,
+email:email,
+role:selectedRole,
+service:selectedRole==="worker"?service.value:"",
+createdAt:serverTimestamp()
+
+});
+
+if(selectedRole==="customer"){
+window.location.href="customer-dashboard.html";
+}else{
+window.location.href="worker-dashboard.html";
+}
+
+}catch(error){
+
+if(error.code==="auth/email-already-in-use"){
+msg.textContent="This email is already registered. Please Login.";
+}else if(error.code==="auth/weak-password"){
+msg.textContent="Password must be at least 6 characters.";
+}else{
+msg.textContent=error.message;
+}
+
+btn.disabled=false;
+
+}
+
+});
+
+</script>
+
+</body>
+</html>
