@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notifications - Worker Booking</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f3f5f9;
+    margin: 0;
+    padding: 20px;
+}
+.container {
+    max-width: 650px;
+    margin: auto;
+}
+h2 {
+    text-align: center;
+    color: #176b45;
+}
+.notice {
+    background: white;
+    padding: 16px;
+    margin: 12px 0;
+    border-radius: 10px;
+    box-shadow: 0 2px 7px #ddd;
+}
+.notice h3 {
+    margin-top: 0;
+}
+.status {
+    font-weight: bold;
+    color: #176b45;
+}
+button {
+    background: #176b45;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+#message {
+    text-align: center;
+    color: #666;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🔔 Notifications</h2>
+
+<p id="welcome">Loading...</p>
+
+<div id="notifications">
+<p id="message">Loading notifications...</p>
+</div>
+
+<button onclick="location.href='dashboard.html'">
+Back to Dashboard
+</button>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+ onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+ doc,
+ getDoc,
+ collection,
+ query,
+ where,
+ onSnapshot
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const box = document.getElementById("notifications");
+const welcome = document.getElementById("welcome");
+
+onAuthStateChanged(auth, async (user) => {
+
+ if (!user) {
+   location.href = "login.html";
+   return;
+ }
+
+ try {
+
+   const profileRef = doc(db, "users", user.uid);
+   const profileSnap = await getDoc(profileRef);
+
+   if (!profileSnap.exists()) {
+     welcome.innerText = "Profile not found";
+     return;
+   }
+
+   const profile = profileSnap.data();
+
+   welcome.innerText =
+     "Welcome, " + (profile.name || "User");
+
+   let bookingQuery;
+
+   if (profile.role === "worker") {
+
+     bookingQuery = query(
+       collection(db, "bookings"),
+       where("workerId", "==", user.uid)
+     );
+
+   } else {
+
+     bookingQuery = query(
+       collection(db, "bookings"),
+       where("customerId", "==", user.uid)
+     );
+
+   }
+
+   onSnapshot(bookingQuery, (snapshot) => {
+
+     box.innerHTML = "";
+
+     if (snapshot.empty) {
+       box.innerHTML =
+         "<p id='message'>No notifications yet.</p>";
+       return;
+     }
+
+     let bookings = [];
+
+     snapshot.forEach((item) => {
+       bookings.push({
+         id: item.id,
+         ...item.data()
+       });
+     });
+
+     bookings.sort((a, b) => {
+       const dateA = a.createdAt?.seconds || 0;
+       const dateB = b.createdAt?.seconds || 0;
+       return dateB - dateA;
+     });
+
+     bookings.forEach((booking) => {
+
+       let title = "";
+       let description = "";
+
+       if (profile.role === "worker") {
+
+         title = "New Booking Request";
+
+         description =
+           "Customer: " +
+           (booking.customerName || "Customer");
+
+       } else if (booking.status === "accepted") {
+
+         title = "Booking Accepted!";
+
+         description =
+           "Your booking has been accepted by the worker.";
+
+       } else if (booking.status === "rejected") {
+
+         title = "Booking Rejected";
+
+         description =
+           "Your booking was rejected by the worker.";
+
+       } else {
+
+         title = "Booking Pending";
+
+         description =
+           "Your booking is waiting for confirmation.";
+
+       }
+
+       const card = document.createElement("div");
+       card.className = "notice";
+
+       const heading = document.createElement("h3");
+       heading.textContent = title;
+
+       const detail = document.createElement("p");
+       detail.textContent = description;
+
+       const service = document.createElement("p");
+       service.textContent =
+         "Service: " + (booking.service || "Not specified");
+
+       const status = document.createElement("p");
+       status.className = "status";
+       status.textContent =
+         "Status: " + (booking.status || "pending").toUpperCase();
+
+       card.append(heading, detail, service, status);
+       box.appendChild(card);
+
+     });
+
+   }, (error) => {
+     box.innerHTML =
+       "<p>Could not load notifications: " +
+       error.message + "</p>";
+   });
+
+ } catch (error) {
+
+   welcome.innerText = error.message;
+
+ }
+
+});
+
+</script>
+
+</body>
+</html>
