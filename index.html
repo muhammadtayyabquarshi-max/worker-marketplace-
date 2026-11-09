@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Worker Booking App</title>
+
+<meta name="theme-color" content="#123b32">
+<meta name="description" content="Find, Book, Hire and Review Workers">
+
+<link rel="stylesheet" href="app.css">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" href="./favicon.png">
+<link rel="apple-touch-icon" href="./app-icon.png">
+
+</head>
+
+<body>
+
+<header>
+  <div class="brand">
+    <img src="logo.png" alt="Worker Booking Logo"
+         style="height:40px;vertical-align:middle;">
+    Worker Booking
+  </div>
+
+  <nav>
+    <a href="login.html">Login</a>
+    <a href="register.html">Register</a>
+    <a href="workers.html">Workers</a>
+  </nav>
+</header>
+
+<main>
+
+<section class="card">
+  <h1 id="title">Book Workers Near You</h1>
+  <p id="intro">Choose your required service.</p>
+
+  <button id="english">English</button>
+  <button class="secondary" id="urdu">اردو</button>
+</section>
+
+<section class="card">
+  <h2 id="heading">Choose a Service</h2>
+  <div class="grid" id="services"></div>
+</section>
+
+<section class="card hidden" id="booking">
+
+  <h2>Booking Form</h2>
+  <p class="notice" id="selected"></p>
+
+  <form id="bookingForm">
+
+    <label>Name</label>
+    <input id="name" required>
+
+    <label>Phone</label>
+    <input id="phone" required>
+
+    <label>Email</label>
+    <input id="email" type="email" required>
+
+    <label>Password</label>
+    <input id="password" type="password" minlength="6" required>
+
+    <label>Address</label>
+    <textarea id="address" required></textarea>
+
+    <label>Date</label>
+    <input id="date" type="date" required>
+
+    <button type="submit">Create Account & Send Request</button>
+
+  </form>
+
+  <p id="msg"></p>
+
+</section>
+
+</main>
+
+<footer>Worker Booking Pakistan</footer>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+  createUserWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+  doc,
+  setDoc,
+  collection,
+  addDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const $ = id => document.getElementById(id);
+
+const services = [
+  "Carpenter",
+  "Plumber",
+  "Electrician",
+  "Painter",
+  "AC Technician",
+  "Cleaner",
+  "Welder",
+  "Other"
+];
+
+let selectedService = "";
+let language = "en";
+
+function showServices() {
+
+  $("services").innerHTML = services.map(service => `
+    <button class="service" data-service="${service}">
+      ${service}
+    </button>
+  `).join("");
+
+  document.querySelectorAll("[data-service]").forEach(button => {
+
+    button.onclick = () => {
+
+      selectedService = button.dataset.service;
+
+      $("selected").textContent =
+        "You selected: " + selectedService;
+
+      $("booking").classList.remove("hidden");
+
+      $("booking").scrollIntoView({
+        behavior: "smooth"
+      });
+
+    };
+
+  });
+
+}
+
+$("english").onclick = () => {
+
+  language = "en";
+
+  $("title").textContent = "Book Workers Near You";
+  $("intro").textContent = "Choose your required service.";
+  $("heading").textContent = "Choose a Service";
+
+  showServices();
+
+};
+
+$("urdu").onclick = () => {
+
+  language = "ur";
+
+  $("title").textContent = "اپنے قریب کاریگر بک کریں";
+  $("intro").textContent = "اپنا مطلوبہ کام منتخب کریں۔";
+  $("heading").textContent = "کام منتخب کریں";
+
+  showServices();
+
+};
+
+showServices();
+
+$("bookingForm").onsubmit = async e => {
+
+  e.preventDefault();
+
+  $("msg").textContent = "Please wait...";
+
+  try {
+
+    const account = await createUserWithEmailAndPassword(
+      auth,
+      $("email").value,
+      $("password").value
+    );
+
+    await setDoc(
+      doc(db, "users", account.user.uid),
+      {
+        name: $("name").value,
+        phone: $("phone").value,
+        email: $("email").value,
+        role: "customer",
+        createdAt: serverTimestamp()
+      }
+    );
+
+    await addDoc(
+      collection(db, "bookingRequests"),
+      {
+        customerId: account.user.uid,
+        customerName: $("name").value,
+        customerPhone: $("phone").value,
+        service: selectedService,
+        address: $("address").value,
+        date: $("date").value,
+        status: "Looking for worker",
+        createdAt: serverTimestamp()
+      }
+    );
+
+    location.href = "dashboard.html";
+
+  } catch(error) {
+
+    $("msg").textContent = error.message;
+
+  }
+
+};
+
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .then(() => console.log("Worker Booking App Ready"))
+      .catch(error => console.error("PWA Error:", error));
+  });
+}
+</script>
+
+</body>
+</html>
