@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Dashboard</title>
+<link rel="stylesheet" href="app.css">
+
+<style>
+body{
+  font-family:Arial,sans-serif;
+  background:#f2f5f7;
+  margin:0;
+  padding:15px;
+}
+.container{
+  max-width:1000px;
+  margin:auto;
+}
+.card{
+  background:white;
+  padding:16px;
+  margin:14px 0;
+  border-radius:12px;
+  box-shadow:0 2px 8px #0001;
+}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+.stat{
+  background:#e8f5ef;
+  padding:15px;
+  border-radius:10px;
+  text-align:center;
+}
+.stat b{
+  display:block;
+  font-size:25px;
+  margin-top:8px;
+}
+button{
+  padding:11px 16px;
+  background:#087f5b;
+  color:white;
+  border:0;
+  border-radius:7px;
+  cursor:pointer;
+}
+.table-wrap{
+  overflow-x:auto;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:550px;
+}
+td,th{
+  padding:10px;
+  border-bottom:1px solid #ddd;
+  text-align:left;
+}
+.item{
+  background:#f7f9fa;
+  padding:12px;
+  margin:10px 0;
+  border-radius:8px;
+  overflow-wrap:anywhere;
+}
+#message{
+  font-weight:bold;
+  color:#087f5b;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Admin Dashboard / ایڈمن پینل</h2>
+
+<p id="message">Checking admin access...</p>
+
+<div id="panel" style="display:none">
+
+<div class="card">
+<h3>Statistics / اعدادوشمار</h3>
+
+<div class="stats">
+
+<div class="stat">Total Users<b id="usersCount">0</b></div>
+<div class="stat">Workers<b id="workersCount">0</b></div>
+<div class="stat">Customers<b id="customersCount">0</b></div>
+<div class="stat">All Bookings<b id="bookingsCount">0</b></div>
+<div class="stat">Pending<b id="pendingCount">0</b></div>
+<div class="stat">Accepted<b id="acceptedCount">0</b></div>
+<div class="stat">Rejected<b id="rejectedCount">0</b></div>
+<div class="stat">Completed<b id="completedCount">0</b></div>
+
+</div>
+</div>
+
+<div class="card">
+<h3>All Users / تمام صارفین</h3>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Email</th>
+<th>Phone</th>
+<th>Role</th>
+<th>City</th>
+</tr>
+</thead>
+<tbody id="usersList"></tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<h3>All Bookings / تمام بکنگز</h3>
+<div id="bookingsList"></div>
+</div>
+
+<div class="card">
+<h3>Customer Complaints / شکایات</h3>
+<div id="complaintsList"></div>
+</div>
+
+<button id="refreshBtn">Refresh All Data</button>
+
+</div>
+</div>
+
+<script type="module">
+
+import {auth,db} from "./firebase.js";
+
+import {
+onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+doc,
+getDoc,
+collection,
+getDocs,
+query,
+orderBy
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+const $=id=>document.getElementById(id);
+
+let allowed=false;
+
+onAuthStateChanged(auth,async user=>{
+
+if(!user){
+$("message").textContent="Please login first.";
+return;
+}
+
+try{
+
+const profile=await getDoc(doc(db,"users",user.uid));
+
+if(!profile.exists() || profile.data().role!=="admin"){
+$("message").textContent="Access denied. Admin only.";
+return;
+}
+
+allowed=true;
+$("panel").style.display="block";
+
+await loadData();
+
+}catch(error){
+
+$("message").textContent="Error: "+error.message;
+
+}
+
+});
+
+async function loadData(){
+
+if(!allowed)return;
+
+$("message").textContent="Loading dashboard...";
+
+try{
+
+const [userSnap,bookingSnap,complaintSnap]=await Promise.all([
+
+getDocs(collection(db,"users")),
+
+getDocs(collection(db,"bookings")),
+
+getDocs(query(
+collection(db,"supportRequests"),
+orderBy("createdAt","desc")
+))
+
+]);
+
+let workers=0;
+let customers=0;
+let pending=0;
+let accepted=0;
+let rejected=0;
+let completed=0;
+
+$("usersList").innerHTML="";
+$("bookingsList").innerHTML="";
+$("complaintsList").innerHTML="";
+
+userSnap.forEach(item=>{
+
+const u=item.data();
+
+if(u.role==="worker")workers++;
+if(u.role==="customer")customers++;
+
+const tr=document.createElement("tr");
+
+[u.name,u.email,u.phone,u.role,u.city].forEach(value=>{
+
+const td=document.createElement("td");
+td.textContent=value||"";
+tr.appendChild(td);
+
+});
+
+$("usersList").appendChild(tr);
+
+});
+
+bookingSnap.forEach(item=>{
+
+const b=item.data();
+
+if(b.status==="pending")pending++;
+if(b.status==="accepted")accepted++;
+if(b.status==="rejected")rejected++;
+if(b.status==="completed")completed++;
+
+const card=document.createElement("div");
+card.className="item";
+
+const title=document.createElement("h4");
+title.textContent=b.service||"Booking";
+
+const details=document.createElement("p");
+
+details.textContent=
+"Customer: "+(b.customerName||"")+
+" | Worker: "+(b.workerName||"")+
+" | Date: "+(b.date||"")+
+" | Time: "+(b.time||"")+
+" | Status: "+(b.status||"");
+
+card.append(title,details);
+
+$("bookingsList").appendChild(card);
+
+});
+
+complaintSnap.forEach(item=>{
+
+const c=item.data();
+
+const card=document.createElement("div");
+card.className="item";
+
+const title=document.createElement("h4");
+title.textContent=c.subject||c.category||"Complaint";
+
+const details=document.createElement("p");
+
+details.textContent=
+"Email: "+(c.email||"")+
+" | Category: "+(c.category||"")+
+" | Status: "+(c.status||"open")+
+" | Details: "+(c.details||"");
+
+card.append(title,details);
+
+$("complaintsList").appendChild(card);
+
+});
+
+$("usersCount").textContent=userSnap.size;
+$("workersCount").textContent=workers;
+$("customersCount").textContent=customers;
+$("bookingsCount").textContent=bookingSnap.size;
+$("pendingCount").textContent=pending;
+$("acceptedCount").textContent=accepted;
+$("rejectedCount").textContent=rejected;
+$("completedCount").textContent=completed;
+
+if(complaintSnap.empty){
+$("complaintsList").textContent="No complaints found.";
+}
+
+if(userSnap.empty){
+$("usersList").innerHTML="<tr><td>No users found</td></tr>";
+}
+
+if(bookingSnap.empty){
+$("bookingsList").textContent="No bookings found.";
+}
+
+$("message").textContent="Dashboard loaded successfully.";
+
+}catch(error){
+
+$("message").textContent=
+"Could not load data: "+error.message;
+
+}
+
+}
+
+$("refreshBtn").addEventListener("click",loadData);
+
+</script>
+
+</body>
+</html>
