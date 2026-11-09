@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Help & Support</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f5f7;
+  padding: 15px;
+}
+.container {
+  max-width: 600px;
+  margin: auto;
+}
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin: 15px 0;
+}
+input, select, textarea {
+  width: 100%;
+  padding: 12px;
+  margin: 9px 0;
+  box-sizing: border-box;
+}
+button {
+  width: 100%;
+  padding: 13px;
+  background: #176b45;
+  color: white;
+  border: 0;
+  border-radius: 7px;
+}
+.status {
+  color: #176b45;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🎧 Help & Support</h2>
+
+<div class="card">
+
+<h3>Submit a Complaint</h3>
+
+<select id="category">
+<option value="Booking">Booking Problem</option>
+<option value="Payment">Payment Problem</option>
+<option value="Worker">Worker Problem</option>
+<option value="Account">Account Problem</option>
+<option value="Other">Other</option>
+</select>
+
+<input id="subject" placeholder="Subject">
+
+<textarea id="details"
+placeholder="Describe your problem..."
+rows="5"></textarea>
+
+<button id="submit">Send Request</button>
+
+<p id="message"></p>
+
+</div>
+
+<div class="card">
+
+<h3>My Support Requests</h3>
+
+<div id="requests">Loading...</div>
+
+</div>
+
+<button onclick="location.href='dashboard.html'">
+Back to Dashboard
+</button>
+
+</div>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+
+import {
+onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
+
+import {
+collection, addDoc, query, where,
+getDocs, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+
+let currentUser = null;
+
+const message = document.getElementById("message");
+const requests = document.getElementById("requests");
+
+onAuthStateChanged(auth, async user => {
+
+if (!user) {
+location.href = "login.html";
+return;
+}
+
+currentUser = user;
+
+loadRequests();
+
+});
+
+document.getElementById("submit").onclick = async () => {
+
+const category = document.getElementById("category").value;
+const subject = document.getElementById("subject").value.trim();
+const details = document.getElementById("details").value.trim();
+
+if (!subject || !details) {
+message.textContent = "Please fill all fields.";
+return;
+}
+
+try {
+
+await addDoc(collection(db, "supportRequests"), {
+
+userId: currentUser.uid,
+email: currentUser.email,
+category,
+subject,
+details,
+status: "open",
+createdAt: serverTimestamp()
+
+});
+
+message.textContent = "Request submitted successfully!";
+
+document.getElementById("subject").value = "";
+document.getElementById("details").value = "";
+
+loadRequests();
+
+} catch(error) {
+
+message.textContent = error.message;
+
+}
+
+};
+
+async function loadRequests() {
+
+try {
+
+const q = query(
+collection(db, "supportRequests"),
+where("userId", "==", currentUser.uid)
+);
+
+const snapshot = await getDocs(q);
+
+requests.innerHTML = "";
+
+if (snapshot.empty) {
+requests.textContent = "No support requests yet.";
+return;
+}
+
+snapshot.forEach(item => {
+
+const data = item.data();
+
+const card = document.createElement("div");
+card.className = "card";
+
+const title = document.createElement("h3");
+title.textContent = data.subject;
+
+const category = document.createElement("p");
+category.textContent = "Category: " + data.category;
+
+const status = document.createElement("p");
+status.className = "status";
+status.textContent = "Status: " + data.status;
+
+card.append(title, category, status);
+
+requests.appendChild(card);
+
+});
+
+} catch(error) {
+
+requests.textContent = error.message;
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
